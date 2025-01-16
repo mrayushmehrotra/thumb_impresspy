@@ -1,20 +1,22 @@
 import cv2
 import numpy as np
 
+
 def capture_and_process_image(filename):
-    # Step 1: Capture Thumb Impression
+    # Step 1: Capture the Thumb Impression
+
     cap = cv2.VideoCapture(0)
     cap.set(3, 640)  # Width
     cap.set(4, 480)  # Height
 
     while True:
         ret, frame = cap.read()
-        cv2.imshow('Capture Thumb Impression', frame)
+        cv2.imshow("Capture Thumb Impression", frame)
 
         # Wait for user to press 'c' to capture the image
-        if cv2.waitKey(1) & 0xFF == ord('c'):
+        if cv2.waitKey(1) & 0xFF == ord("c"):
             cv2.imwrite(filename, frame)
-            print(f'Thumb Impression captured and saved as {filename}')
+            print(f"Thumb Impression captured and saved as {filename}")
             break
 
     cap.release()
@@ -42,13 +44,13 @@ def capture_and_process_image(filename):
     # Find the largest contour which should be the hand
     if contours:
         max_contour = max(contours, key=cv2.contourArea)
-        
+
         # Draw the contour on the original image
         cv2.drawContours(image, [max_contour], -1, (0, 255, 0), 2)
-        
+
         # Step 4: Convex Hull around the hand
         hull = cv2.convexHull(max_contour)
-        
+
         # Draw the convex hull on the image
         cv2.drawContours(image, [hull], -1, (255, 0, 0), 2)
 
@@ -58,33 +60,35 @@ def capture_and_process_image(filename):
             cv2.circle(image, (x, y), 5, (0, 0, 255), -1)
 
     # Save the final processed image
-    processed_filename = f'processed_{filename}'
+    processed_filename = f"processed_{filename}"
     cv2.imwrite(processed_filename, image)
 
     # Display the final image with the selected hand and thumb part
-    cv2.imshow('Hand and Thumb Detection', image)
+    cv2.imshow("Hand and Thumb Detection", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
     return processed_filename
 
+
 def process_image_for_matching(image_path):
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    
+
     # Histogram equalization to improve contrast
     equalized_image = cv2.equalizeHist(image)
-    
+
     # Apply Gaussian Blur to reduce noise
     blurred_image = cv2.GaussianBlur(equalized_image, (5, 5), 0)
-    
+
     # Apply Morphological operations to remove small noise
     kernel = np.ones((5, 5), np.uint8)
     morph_image = cv2.morphologyEx(blurred_image, cv2.MORPH_CLOSE, kernel)
-    
+
     # Edge detection using Canny
     edges = cv2.Canny(morph_image, 50, 150)
-    
+
     return edges
+
 
 def match_impressions(image1_path, image2_path):
     image1 = process_image_for_matching(image1_path)
@@ -99,7 +103,7 @@ def match_impressions(image1_path, image2_path):
     FLANN_INDEX_KDTREE = 1
     index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
     search_params = dict(checks=50)  # Or pass empty dictionary
-    
+
     flann = cv2.FlannBasedMatcher(index_params, search_params)
     matches = flann.knnMatch(des1, des2, k=2)
 
@@ -111,22 +115,30 @@ def match_impressions(image1_path, image2_path):
 
     # Apply RANSAC to find the homography and filter outliers
     if len(good_matches) > 10:
-        src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(
+            -1, 1, 2
+        )
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(
+            -1, 1, 2
+        )
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
         matchesMask = mask.ravel().tolist()
     else:
         matchesMask = None
 
-    draw_params = dict(matchColor=(0, 255, 0),  # Draw matches in green color
-                       singlePointColor=None,
-                       matchesMask=matchesMask,  # Draw only inliers
-                       flags=2)
+    draw_params = dict(
+        matchColor=(0, 255, 0),  # Draw matches in green color
+        singlePointColor=None,
+        matchesMask=matchesMask,  # Draw only inliers
+        flags=2,
+    )
 
-    match_img = cv2.drawMatches(image1, kp1, image2, kp2, good_matches, None, **draw_params)
+    match_img = cv2.drawMatches(
+        image1, kp1, image2, kp2, good_matches, None, **draw_params
+    )
 
     # Show the match result
-    cv2.imshow('Matching Result', match_img)
+    cv2.imshow("Matching Result", match_img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -137,11 +149,12 @@ def match_impressions(image1_path, image2_path):
     else:
         return False  # No match
 
+
 # Capture and process the first thumb impression
-first_image_path = capture_and_process_image('first_thumb_impression.jpg')
+first_image_path = capture_and_process_image("first_thumb_impression.jpg")
 
 # Capture and process the second thumb impression for matching
-second_image_path = capture_and_process_image('second_thumb_impression.jpg')
+second_image_path = capture_and_process_image("second_thumb_impression.jpg")
 
 # Match the thumb impressions
 is_match = match_impressions(first_image_path, second_image_path)
